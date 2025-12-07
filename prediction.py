@@ -7,11 +7,16 @@ from sklearn.metrics import mean_absolute_error
 import matplotlib.pyplot as plt
 from sklearn.impute import SimpleImputer
 from xgboost import XGBRegressor
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 fastf1.Cache.enable_cache("f1_cache")
 
-# load the 2024 Qatar session data
-session_2024 = fastf1.get_session(2024, 24, "R")
+# load the 2024 Abu Dhabi session data (latest race)
+session_2024 = fastf1.get_session(2024, "Abu Dhabi", "R")
 session_2024.load()
 laps_2024 = session_2024.laps[["Driver", "LapTime", "Sector1Time", "Sector2Time", "Sector3Time"]].copy()
 laps_2024.dropna(inplace=True)
@@ -62,18 +67,35 @@ qualifying_2025 = pd.DataFrame({
 
 
 qualifying_2025["CleanAirRacePace (s)"] = qualifying_2025["Driver"].map(clean_air_race_pace)
-API_KEY = ""
-lat, lon = 24.4672, 54.6031  
-weather_url = f"http://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={API_KEY}&units=metric"
-response = requests.get(weather_url)
-weather_data = response.json()
 
-forecast_time = "2025-12-07 13:00:00"
-forecast_data = next((f for f in weather_data["list"] if f["dt_txt"] == forecast_time), None)
+# Fetch live weather data for Abu Dhabi GP
+API_KEY = os.getenv("API_KEY")
+lat, lon = 24.4672, 54.6031  # Yas Marina Circuit coordinates
 
-
-rain_probability = forecast_data["pop"] if forecast_data else 0
-temperature = forecast_data["main"]["temp"] if forecast_data else 20
+try:
+    weather_url = f"http://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={API_KEY}&units=metric"
+    response = requests.get(weather_url)
+    weather_data = response.json()
+    
+    if response.status_code == 200:
+        temperature = weather_data["main"]["temp"]
+        # Rain probability from weather conditions
+        if "rain" in weather_data:
+            rain_probability = min(weather_data.get("rain", {}).get("1h", 0) / 10, 1)  # Convert mm to probability
+        else:
+            rain_probability = 0.3 if weather_data["weather"][0]["main"] in ["Rain", "Drizzle", "Thunderstorm"] else 0
+        
+        print(f"🌤️  Live Weather: {temperature}°C, Rain Probability: {rain_probability*100:.0f}%")
+    else:
+        # Fallback to default values
+        rain_probability = 0
+        temperature = 27
+        print("⚠️  Using default weather values")
+except Exception as e:
+    # Fallback to default values if API fails
+    rain_probability = 0
+    temperature = 27
+    print(f"⚠️  Weather API error: {e}. Using default values.")
 
 # adjust qualifying time based on weather conditions
 if rain_probability >= 0.75:
@@ -96,32 +118,32 @@ driver_to_team = {
     "SAI": "Williams", "HUL": "Kick Sauber", "OCO": "Alpine", "STR": "Aston Martin"
 }
 
-qualifying_2025["Team"] = qualifying_2025["Driver"].map(driver_to_team)
-qualifying_2025["TeamPerformanceScore"] = qualifying_2025["Team"].map(team_performance_score)
+qualifying_2025["TeamPerformanceScore"] = qualifying_2025["Driver"].map(driver_to_team).map(team_performance_score)
 
-# merge qualifying and sector times data
+# merge qualifying data with sector times
 merged_data = qualifying_2025.merge(sector_times_2024[["Driver", "TotalSectorTime (s)"]], on="Driver", how="left")
 merged_data["RainProbability"] = rain_probability
 merged_data["Temperature"] = temperature
-merged_data["QualifyingTime"] = merged_data["QualifyingTime"]
 
-
-valid_drivers = merged_data["Driver"].isin(laps_2024["Driver"].unique())
-merged_data = merged_data[valid_drivers]
+y = laps_2024.groupby("Driver")["LapTime (s)"].mean().reindex(merged_data["Driver"])
 
 # define features (X) and target (y)
 X = merged_data[[
-    "QualifyingTime", "RainProbability", "Temperature", "TeamPerformanceScore", 
+    "QualifyingTime (s)", "RainProbability", "Temperature", "TeamPerformanceScore", 
     "CleanAirRacePace (s)"
 ]]
-y = laps_2024.groupby("Driver")["LapTime (s)"].mean().reindex(merged_data["Driver"])
 
-# impute missing values for features
-imputer = SimpleImputer(strategy="median")
+# impute missing values in X
+imputer = SimpleImputer(strategy="mean")
 X_imputed = imputer.fit_transform(X)
 
+# Remove rows where y is NaN
+valid_mask = ~y.isna()
+X_imputed_valid = X_imputed[valid_mask]
+y_valid = y[valid_mask]
+
 # train-test split
-X_train, X_test, y_train, y_test = train_test_split(X_imputed, y, test_size=0.1, random_state=39)
+X_train, X_test, y_train, y_test = train_test_split(X_imputed_valid, y_valid, test_size=0.1, random_state=39)
 
 # train XGBoost model
 model = XGBRegressor(n_estimators=300, learning_rate=0.9, max_depth=3, random_state=39,  monotone_constraints='(1, 0, 0, -1, -1)')
@@ -129,7 +151,7 @@ model.fit(X_train, y_train)
 merged_data["PredictedRaceTime (s)"] = model.predict(X_imputed)
 
 # sort the results to find the predicted winner
-final_results = merged_data.sort_values(by=["PredictedRaceTime (s)", "QualifyingTime"]).reset_index(drop=True)
+final_results = merged_data.sort_values(by=["PredictedRaceTime (s)", "QualifyingTime (s)"]).reset_index(drop=True)
 print(final_results[["Driver", "PredictedRaceTime (s)"]])
 
 # sort results and get top 3

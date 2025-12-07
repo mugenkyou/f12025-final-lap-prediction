@@ -1,64 +1,90 @@
-# 2025_f1_predictions
+# 🏎️ F1 2025 Final Lap Prediction
 
-# 🏎️ F1 Predictions 2025 - Machine Learning Model
+Real-time Formula 1 race prediction using **machine learning** and **live weather data**. Predicts race outcomes based on 2024 Abu Dhabi GP data, qualifying times, team performance, and current weather conditions.
 
-Welcome to the **F1 Predictions 2025** repository! This project uses **machine learning, FastF1 API data, and historical F1 race results** to predict race outcomes for the 2025 Formula 1 season.
+## 🚀 Features
 
-## 🚀 Project Overview
-This repository contains a **Gradient Boosting Machine Learning model** that predicts race results based on past performance, qualifying times, and other structured F1 data. The model leverages:
-- FastF1 API for historical race data
-- 2024 race results
-- 2025 qualifying session results
-- Over the course of the season we will be adding additional data to improve our model as well
-- Feature engineering techniques to improve predictions
+- **XGBoost Machine Learning Model** for race time predictions
+- **Live Weather Integration** via OpenWeatherMap API
+- **FastF1 API** for historical race data and telemetry
+- **Real-time predictions** based on qualifying results
+- Team performance scoring and clean air race pace analysis
 
 ## 📊 Data Sources
-- **FastF1 API**: Fetches lap times, race results, and telemetry data
-- **2025 Qualifying Data**: Used for prediction
-- **Historical F1 Results**: Processed from FastF1 for training the model
+
+- **FastF1 API**: 2024 Abu Dhabi GP race data, lap times, and sector analysis
+- **OpenWeatherMap API**: Real-time temperature and rain probability
+- **2025 Qualifying Data**: Latest qualifying session results
+- **Team Performance**: 2024 constructor standings
 
 ## 🏁 How It Works
-1. **Data Collection**: The script pulls relevant F1 data using the FastF1 API.
-2. **Preprocessing & Feature Engineering**: Converts lap times, normalizes driver names, and structures race data.
-3. **Model Training**: A **Gradient Boosting Regressor** is trained using 2024 race results.
-4. **Prediction**: The model predicts race times for 2025 and ranks drivers accordingly.
-5. **Evaluation**: Model performance is measured using **Mean Absolute Error (MAE)**.
 
-### Dependencies
-- `fastf1`
-- `numpy`
-- `pandas`
-- `scikit-learn`
-- `matplotlib`
+1. **Load Historical Data**: Fetches 2024 Abu Dhabi GP race data via FastF1
+2. **Live Weather**: Gets current weather conditions for Yas Marina Circuit
+3. **Feature Engineering**: Combines qualifying times, team scores, race pace, and weather
+4. **Model Training**: XGBoost regressor trained on 2024 data
+5. **Prediction**: Predicts race times and ranks drivers for podium positions
+6. **Evaluation**: Displays Mean Absolute Error (MAE) and feature importance
 
-## File Structure 
-- For every race the end of the file will be numbered in correlation to the race on the calendar, ex. prediction1 - Australia, prediction2 - China, etc.
+## 📦 Dependencies
+
+```bash
+pip install fastf1 pandas numpy scikit-learn xgboost matplotlib requests python-dotenv
+```
+
+## 🔑 API Key Setup
+
+1. Get a free API key from [OpenWeatherMap](https://openweathermap.org/api)
+2. Create a `.env` file in the project root:
+
+```
+API_KEY=your_api_key_here
+```
+
+3. The `.env` file is automatically ignored by git and won't be pushed
 
 ## 🔧 Usage
+
 Run the prediction script:
+
 ```bash
-python3 prediction1.py
+python prediction.py
 ```
+
 Expected output:
+
 ```
-🏁 Predicted 2025 Australian GP Winner 🏁
-Driver: Charles Leclerc, Predicted Race Time: 82.67s
+🌤️  Live Weather: 29.1°C, Rain Probability: 0%
+   Driver  PredictedRaceTime (s)
+0     VER              89.512375
 ...
-🔍 Model Error (MAE): 3.22 seconds
+🏆 Predicted in the Top 3 🏆
+🥇 P1: VER
+🥈 P2: NOR
+🥉 P3: PIA
+Model Error (MAE): 0.99 seconds
 ```
 
 ## 📈 Model Performance
-The Mean Absolute Error (MAE) is used to evaluate how well the model predicts race times. Lower MAE values indicate more accurate predictions.
+
+- **MAE (Mean Absolute Error)**: ~0.99 seconds
+- **Features Used**: Qualifying time, rain probability, temperature, team performance, clean air race pace
+- **Algorithm**: XGBoost Regressor with monotone constraints
+- Feature importance visualization included
 
 ## 📌 Future Improvements
-- Incorporate **weather conditions** as a feature
-- Add **pit stop strategies** into the model
-- Explore **deep learning** models for improved accuracy
-- @mar_antaya on Instagram and TikTok will update with the latest predictions before every race of the 2025 F1 season
+
+- Add pit stop strategy predictions
+- Incorporate tire degradation models
+- Multi-race trend analysis
+- Deep learning model exploration
 
 ## 📜 License
+
 This project is licensed under the MIT License.
 
+## 🔗 Repository
 
-🏎️ **Start predicting F1 races like a data scientist!** 🚀
+[https://github.com/mugenkyou/f12025-final-lap-prediction](https://github.com/mugenkyou/f12025-final-lap-prediction)
 
+🏎️ **Predict F1 races with real-time data!** 🚀
